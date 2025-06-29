@@ -33,7 +33,7 @@ This repository showcases my comparative study project comparing traditional tim
 <pre>
 
 
-```
+
 ├── README.md                        # Project overview and description
 ├── LICENSE                          # MIT license file
 │
@@ -59,7 +59,7 @@ This repository showcases my comparative study project comparing traditional tim
 │   └── tables/
 │       ├── model_performance.csv
 │       └── summary_statistics.csv
-```
+
 </pre>
 
 
