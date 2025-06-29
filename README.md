@@ -5,20 +5,21 @@
 
 
 **Overview**
+
 This repository showcases my comparative study project comparing traditional time series models and machine learning algorithms to predict gold price movements. The project includes:
 - Preprocessed financial and macroeconomic data
 - Implemented models (ARIMA, LASSO, Random Forest, XGBoost)
 - Rolling cross-validation
 - Visual and quantitative evaluation
 
----
 
 **Objectives**
+
 - Predict gold prices using real-world time series data
 - Compare performance of traditional statistical vs ML methods
 - Identify the best-performing approach based on RMSE, MAE, and residual diagnostics
 
----
+
 
 **Methods & Models**
 | Type              | Model       |
@@ -52,6 +53,7 @@ Results :
 
 
 **Results Summary**
+
 - **XGBoost** achieved the lowest RMSE and best fit to recent price patterns
 - **Random Forest** also performed well with minimal tuning
 - **ARIMA** showed solid trend tracking but weaker performance during volatility
@@ -69,6 +71,7 @@ Results :
 
 
 **Visual Outputs**
+
 Plots, residuals, and performance visuals are stored in:
 /results/plots/
 /results/tables/
