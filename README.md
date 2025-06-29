@@ -20,7 +20,7 @@ This repository showcases my comparative study project comparing traditional tim
 
 ---
 
-## 🧠 Methods & Models
+**Methods & Models**
 | Type              | Model       |
 |------------------|-------------|
 | Statistical       | ARIMA       |
@@ -29,18 +29,32 @@ This repository showcases my comparative study project comparing traditional tim
 
 **Repository Structure**
 
-├── thesis/
-│   └── gold_price_thesis.pdf
-├── data/
+├── README.md                        # Project overview and description
+├── LICENSE                          # MIT license file
+│
+├── Comparative Study Paper/        # Final paper document
+│   └── Traditional_Stats_vs_ML_Gold_Price.pdf
+│
+├── data/                            # Cleaned input data
 │   └── cleaned_data.csv
-├── code/
+│
+├── code/                            # R scripts used in the project
 │   ├── 01_data_preprocessing.R
-│   ├── …
-├── results/
+│   ├── 02_rolling_cross_validation.R
+│   ├── 03_modeling_arima.R
+│   ├── 04_modeling_lasso.R
+│   ├── 05_modeling_rf.R
+│   ├── 06_modeling_xgboost.R
+│   └── 07_evaluation_and_results.R
+│
+├── results/                         # Model outputs and visualizations
 │   ├── plots/
+│   │   ├── predicted_vs_actual_xgboost.png
+│   │   └── residuals_rf.png
 │   └── tables/
-├── LICENSE
-└── README.md
+│       ├── model_performance.csv
+│       └── summary_statistics.csv
+
 
 **Results Summary**
 - **XGBoost** achieved the lowest RMSE and best fit to recent price patterns
