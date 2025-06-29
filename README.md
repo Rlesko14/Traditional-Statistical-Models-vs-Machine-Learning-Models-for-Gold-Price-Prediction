@@ -30,17 +30,17 @@ This repository showcases my comparative study project comparing traditional tim
 **Repository Structure**
 
 ```text
-📁 Repository Structure
-├── 📄 README.md                        # Project overview and description
-├── 📄 LICENSE                          # MIT license file
+Repository Structure
+├── README.md                        # Project overview and description
+├── LICENSE                          # MIT license file
 │
-├── 📂 Comparative Study Paper/        # Final paper document
+├── Comparative Study Paper/        # Final paper document
 │   └── Traditional_Stats_vs_ML_Gold_Price.pdf
 │
-├── 📂 data/                            # Cleaned input data
+├── data/                            # Cleaned input data
 │   └── cleaned_data.csv
 │
-├── 📂 code/                            # R scripts used in the project
+├── code/                            # R scripts used in the project
 │   ├── 01_data_preprocessing.R
 │   ├── 02_rolling_cross_validation.R
 │   ├── 03_modeling_arima.R
@@ -49,7 +49,7 @@ This repository showcases my comparative study project comparing traditional tim
 │   ├── 06_modeling_xgboost.R
 │   └── 07_evaluation_and_results.R
 │
-├── 📂 results/                         # Model outputs and visualizations
+├── results/                         # Model outputs and visualizations
 │   ├── plots/
 │   │   ├── predicted_vs_actual_xgboost.png
 │   │   └── residuals_rf.png
