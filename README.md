@@ -30,8 +30,6 @@ This repository showcases my comparative study project comparing traditional tim
 
 **Repository Structure**
 
-
-Repository Structure :
 - README.md                      
 - LICENSE                          
 - Comparative Study Paper       
