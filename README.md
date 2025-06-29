@@ -31,12 +31,12 @@ This repository showcases my comparative study project comparing traditional tim
 
 
 Repository Structure :
-- README.md                        # Project overview and description
-- LICENSE                          # MIT license file
-- Comparative Study Paper/        # Final paper document
-- data/                            # Cleaned input data
+- README.md                      
+- LICENSE                          
+- Comparative Study Paper       
+- data                          
 
-Code :                           # R scripts used in the project
+Code :                           
 - 01_data_preprocessing.R
 - 02_rolling_cross_validation.R
 - 03_modeling_arima.R
@@ -44,11 +44,9 @@ Code :                           # R scripts used in the project
 - 05_modeling_rf.R
 - 06_modeling_xgboost.R
 - 07_evaluation_and_results.R
-- results/                         # Model outputs and visualizations
--  plots/
--  predicted_vs_actual_xgboost.png
--  residuals_rf.png
-- tables/
+Results :                       
+- plots
+- tables
 
 
 
