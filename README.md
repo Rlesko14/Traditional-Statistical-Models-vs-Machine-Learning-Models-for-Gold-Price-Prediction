@@ -54,11 +54,8 @@ This repository showcases my comparative study project comparing traditional tim
 │
 ├── results/                         # Model outputs and visualizations
 │   ├── plots/
-│   │   ├── predicted_vs_actual_xgboost.png
-│   │   └── residuals_rf.png
 │   └── tables/
-│       ├── model_performance.csv
-│       └── summary_statistics.csv
+
 
 </pre>
 
