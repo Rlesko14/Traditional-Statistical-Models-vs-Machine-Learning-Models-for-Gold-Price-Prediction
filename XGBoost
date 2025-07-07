@@ -1,0 +1,204 @@
+###################################################################################################
+############################################# XGBoost #############################################
+###################################################################################################
+
+
+library(xgboost)
+library(tidyverse)
+
+
+# Create parameter grid
+param_grid <- expand.grid(
+  roll_window = c(100, 200),
+  eta = c(0.1, 0.3, 0.5),
+  max_depth = c(3, 6),
+  nrounds = c(100, 200, 500)
+)
+
+# Add columns to store errors
+param_grid$train_rmse <- NA
+param_grid$test_rmse <- NA
+
+# Loop over each parameter combination
+for (i in 1:nrow(param_grid)) {
+  
+  # Extract parameters
+  roll_window <- param_grid$roll_window[i]
+  eta <- param_grid$eta[i]
+  max_depth <- param_grid$max_depth[i]
+  nrounds <- param_grid$nrounds[i]
+  
+  actual_values <- c()
+  predicted_values <- c()
+  train_errors <- c()
+  test_errors <- c()
+  
+  for (j in seq(roll_window, nrow(X) - 1)) {
+    train_indices <- (j - roll_window + 1):j
+    test_index <- j + 1
+    
+    X_train <- X[train_indices, ]
+    y_train <- y[train_indices]
+    X_test <- X[test_index, , drop = FALSE]
+    y_test <- y[test_index]
+    
+    dtrain <- xgb.DMatrix(data = X_train, label = y_train)
+    dtest <- xgb.DMatrix(data = X_test)
+    
+    # Train model
+    model <- xgb.train(
+      params = list(
+        objective = "reg:squarederror",
+        eval_metric = "rmse",
+        eta = eta,
+        max_depth = max_depth,
+        subsample = 0.8,
+        colsample_bytree = 0.8
+      ),
+      data = dtrain,
+      nrounds = nrounds,
+      verbose = 0
+    )
+    
+    # Predict and calculate errors
+    pred_train <- predict(model, dtrain)
+    pred_test <- predict(model, dtest)
+    
+    train_rmse <- sqrt(mean((pred_train - y_train)^2))
+    test_rmse <- sqrt((pred_test - y_test)^2)
+    
+    train_errors <- c(train_errors, train_rmse)
+    test_errors <- c(test_errors, test_rmse)
+    
+    rm(model)
+    gc(verbose = FALSE)
+  }
+  
+  # Store average RMSEs
+  param_grid$train_rmse[i] <- mean(train_errors)
+  param_grid$test_rmse[i]  <- mean(test_errors)
+  
+  cat("Finished combination", i, "of", nrow(param_grid), "\n")
+  write.csv(param_grid, "xgb_param_grid_progress.csv", row.names = FALSE)
+}
+
+
+group_rounds <- param_grid %>%
+  group_by(nrounds) %>%
+  summarise(
+    mean_test_rmse = mean(test_rmse),
+    sd_test_rmse = sd(test_rmse),
+    min_test_rmse = min(test_rmse),
+    max_test_rmse = max(test_rmse),
+    .groups = 'drop'
+  )
+
+# Filter data for specific nrounds and roll_window
+filtered_data <- param_grid %>% 
+  filter(roll_window == 200, nrounds == 200)
+
+ggplot(filtered_data, aes(x = factor(max_depth), y = factor(eta), fill = test_rmse)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(test_rmse, 2)), color = "white", size = 4) +
+  scale_fill_viridis_c(option = "D") +
+  labs(title = "Test RMSE Heatmap",
+       x = "max_depth", y = "eta", fill = "Test RMSE") +
+  theme_minimal()
+
+
+ggplot(param_grid, aes(x = factor(max_depth), y = test_rmse)) +
+  geom_boxplot(fill = "#69b3a2") +
+  labs(title = "Test RMSE by Tree Depth",
+       x = "Tree Depth", y = "Test RMSE") +
+  theme_minimal()
+
+
+
+
+########################################################################################################
+############################################# Fix parameter values  ####################################
+########################################################################################################
+
+library(xgboost)
+library(ggplot2)
+library(zoo)
+
+#set parameters
+roll_window <- 200
+eta <- 0.1
+max_depth <- 3
+nrounds <- 100
+
+
+train_rmse_list <- c()
+test_rmse_list <- c()
+train_mae_list <- c()
+test_mae_list <- c()
+predicted_values <- c()
+actual_values <- c()
+time_index <- c()
+
+#rolling window prediction
+for (j in seq(roll_window, nrow(X) - 1)) {
+  train_indices <- (j - roll_window + 1):j
+  test_index <- j + 1
+  
+  X_train <- X[train_indices, ]
+  y_train <- y[train_indices]
+  X_test <- X[test_index, , drop = FALSE]
+  y_test <- y[test_index]
+  
+  dtrain <- xgb.DMatrix(data = X_train, label = y_train)
+  dtest <- xgb.DMatrix(data = X_test)
+  
+  model <- xgb.train(
+    params = list(
+      objective = "reg:squarederror",
+      eval_metric = "rmse",
+      eta = eta,
+      max_depth = max_depth,
+      subsample = 0.8,
+      colsample_bytree = 0.8
+    ),
+    data = dtrain,
+    nrounds = nrounds,
+    verbose = 0
+  )
+  
+  #predictions
+  pred_train <- predict(model, dtrain)
+  pred_test <- predict(model, dtest)
+  
+  #error metrics
+  train_rmse <- sqrt(mean((pred_train - y_train)^2))
+  test_rmse <- sqrt((pred_test - y_test)^2)
+  train_mae <- mean(abs(pred_train - y_train))
+  test_mae <- mean(abs(pred_test - y_test))
+  
+  train_rmse_list <- c(train_rmse_list, train_rmse)
+  test_rmse_list <- c(test_rmse_list, test_rmse)
+  train_mae_list <- c(train_mae_list, train_mae)
+  test_mae_list <- c(test_mae_list, test_mae)
+  predicted_values <- c(predicted_values, pred_test)
+  actual_values <- c(actual_values, y_test)
+  time_index <- c(time_index, test_index)
+  
+  rm(model)
+  gc(verbose = FALSE)
+}
+
+#store results
+results <- data.frame(
+  train_rmse = train_rmse_list,
+  test_rmse = test_rmse_list,
+  train_mae = train_mae_list,
+  test_mae = test_mae_list
+)
+
+results_xgb <- data.frame(
+  Time = time_index,
+  Actual = actual_values,
+  Predicted = predicted_values
+)
+
+results_xgb$Residuals <- results_xgb$Actual - results_xgb$Predicted
