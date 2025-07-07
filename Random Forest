@@ -1,0 +1,147 @@
+###################################################################################################
+############################################# Random Forest #######################################
+###################################################################################################
+
+library(randomForest)
+library(tidyverse)
+
+# Define y Y
+y <- filtered_data$GOLD_SPOT_PRICE
+
+# Define X 
+X <- filtered_data %>% select(-GOLD_SPOT_PRICE, -Date)
+# Function to evaluate a single configuration
+# Rolling window RF function 
+rf_ts_single <- function(X, y, roll_window, ntree = 500, mtry = 5) {
+  n <- nrow(X)
+  
+  actual_test <- c()
+  predicted_test <- c()
+  
+  for (i in seq(roll_window, n - 1)) {
+    train_indices <- (i - roll_window + 1):i
+    test_index <- i + 1
+    
+    X_train <- X[train_indices, ]
+    y_train <- y[train_indices]
+    X_test <- X[test_index, , drop = FALSE]
+    y_test <- y[test_index]
+    
+    rf_model <- randomForest(X_train, y_train, ntree = ntree, 
+                             mtry = ifelse(is.null(mtry), floor(sqrt(ncol(X_train))), mtry))
+    
+    pred_test <- predict(rf_model, newdata = X_test)
+    actual_test <- c(actual_test, y_test)
+    predicted_test <- c(predicted_test, pred_test)
+  }
+  
+  test_rmse <- sqrt(mean((actual_test - predicted_test)^2))
+  test_mae <- mean(abs(actual_test - predicted_test))
+  
+  return(c(rmse = test_rmse, mae = test_mae))
+}
+
+# Extended evaluation function to loop over mtry values
+evaluate_rf_combinations <- function(X, y, roll_windows, ntrees, mtry_values) {
+  results <- data.frame()
+  
+  for (rw in roll_windows) {
+    for (nt in ntrees) {
+      for (mt in mtry_values) {
+        cat("Evaluating → Rolling Window:", rw, "| Trees:", nt, "| mtry:", mt, "\n")
+        metrics <- rf_ts_single(X, y, roll_window = rw, ntree = nt, mtry = mt)
+        results <- rbind(results, data.frame(
+          roll_window = rw,
+          ntree = nt,
+          mtry = mt,
+          test_rmse = round(metrics["rmse"], 4),
+          test_mae = round(metrics["mae"], 4)
+        ))
+      }
+    }
+  }
+  
+  return(results)
+}
+
+# Example usage with mtry values
+roll_window_values <- c(100, 150, 200)
+ntree_values <- c(100, 300, 500)
+mtry_values <- c(3, 5, 7, 10)
+
+results_table <- evaluate_rf_combinations(X, y, roll_window_values, ntree_values, mtry_values)
+
+
+
+#I run function again now using pre-defined parameters
+rf_run_with_metrics <- function(X, y, roll_window = 100, ntree = 500, mtry = 10, replace = FALSE) {
+  n <- nrow(X)
+  
+  actual_test <- c()
+  predicted_test <- c()
+  
+  # Initialize vectors for training and testing errors
+  per_iteration_train_rmse <- c()
+  per_iteration_train_mae <- c()
+  per_iteration_test_rmse <- c()
+  per_iteration_test_mae <- c()
+  
+  for (i in seq(roll_window, n - 1)) {
+    train_indices <- (i - roll_window + 1):i
+    test_index <- i + 1
+    
+    X_train <- X[train_indices, ]
+    y_train <- y[train_indices]
+    X_test <- X[test_index, , drop = FALSE]
+    y_test <- y[test_index]
+    
+    set.seed(123) 
+    rf_model <- randomForest(X_train, y_train, ntree = ntree, mtry = mtry, replace = replace)
+    
+    # Predict on training data
+    pred_train <- predict(rf_model, newdata = X_train)
+    train_rmse <- sqrt(mean((y_train - pred_train)^2))
+    train_mae <- mean(abs(y_train - pred_train))
+    
+    # Predict on test data
+    pred_test <- predict(rf_model, newdata = X_test)
+    test_rmse <- sqrt(mean((y_test - pred_test)^2))
+    test_mae <- mean(abs(y_test - pred_test))
+    
+    # Store actual and predicted test values
+    actual_test <- c(actual_test, y_test)
+    predicted_test <- c(predicted_test, pred_test)
+    
+    # Store errors
+    per_iteration_train_rmse <- c(per_iteration_train_rmse, train_rmse)
+    per_iteration_train_mae <- c(per_iteration_train_mae, train_mae)
+    per_iteration_test_rmse <- c(per_iteration_test_rmse, test_rmse)
+    per_iteration_test_mae <- c(per_iteration_test_mae, test_mae)
+  }
+  
+  # Overall test errors
+  test_rmse <- sqrt(mean((actual_test - predicted_test)^2))
+  test_mae <- mean(abs(actual_test - predicted_test))
+  
+  return(list(
+    metrics = data.frame(
+      roll_window = roll_window,
+      ntree = ntree,
+      mtry = mtry,
+      replace = replace,
+      test_rmse = test_rmse,
+      test_mae = test_mae
+    ),
+    actual_test = actual_test,
+    predicted_test = predicted_test,
+    iteration_errors = data.frame(
+      iteration = seq(roll_window + 1, n),
+      train_rmse = per_iteration_train_rmse,
+      train_mae = per_iteration_train_mae,
+      test_rmse = per_iteration_test_rmse,
+      test_mae = per_iteration_test_mae
+    )
+  ))
+}
+
+rf_output <- rf_run_with_metrics(X, y, roll_window = 100, ntree = 500, mtry = 10, replace = FALSE)
