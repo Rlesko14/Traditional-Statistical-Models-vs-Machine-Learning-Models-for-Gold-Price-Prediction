@@ -1,0 +1,70 @@
+###################################################################################################
+################################# LASSO REGRESSION ################################################
+###################################################################################################
+
+# Convert Date column to Date format
+filtered_data$Date <- as.Date(filtered_data$Date)
+
+library(glmnet)
+library(caret)
+library(tidyverse)
+
+
+filtered_data <- na.omit(filtered_data)
+
+# Ensure no NA values after lagging
+filtered_data <- na.omit(filtered_data)
+
+# Define dataset size and split into Train (60%), Validation (20%), Test (20%)
+library(glmnet)
+library(Metrics) 
+set.seed(123)
+
+n <- nrow(filtered_data)
+train_size <- floor(0.6 * n)
+valid_size <- floor(0.2 * n)
+
+# Split dataset chronologically
+train_data <- filtered_data[1:train_size, ]
+valid_data <- filtered_data[(train_size + 1):(train_size + valid_size), ]
+test_data  <- filtered_data[(train_size + valid_size + 1):n, ]
+
+# Prepare feature matrices and target vectors
+X_train <- as.matrix(train_data[, -c(1,2)])  
+y_train <- as.numeric(train_data[[2]])
+
+X_valid <- as.matrix(valid_data[, -c(1,2)])
+y_valid <- as.numeric(valid_data[[2]])
+
+X_test  <- as.matrix(test_data[, -c(1,2)])
+y_test  <- as.numeric(test_data[[2]])
+
+# Cross-validation to find optimal lambda
+cv_lasso <- cv.glmnet(X_train, y_train, alpha = 1, nfolds = 5, standardize = TRUE)
+optimal_lambda <- cv_lasso$lambda.min
+
+# Train final LASSO model
+lasso_model <- glmnet(X_train, y_train, alpha = 1, lambda = optimal_lambda)
+
+# Generate predictions
+train_preds <- predict(lasso_model, X_train)
+valid_preds <- predict(lasso_model, X_valid)
+test_preds  <- predict(lasso_model, X_test)
+
+# Define error metrics
+rmse <- function(actual, predicted) sqrt(mean((actual - predicted)^2))
+mae  <- function(actual, predicted) mean(abs(actual - predicted))
+me   <- function(actual, predicted) mean(predicted - actual) 
+
+# Calculate metrics for each subset
+cat("Train RMSE:", rmse(y_train, train_preds), "\n")
+cat("Train MAE :", mae(y_train, train_preds), "\n")
+cat("Train ME  :", me(y_train, train_preds), "\n\n")
+
+cat("Validation RMSE:", rmse(y_valid, valid_preds), "\n")
+cat("Validation MAE :", mae(y_valid, valid_preds), "\n")
+cat("Validation ME  :", me(y_valid, valid_preds), "\n\n")
+
+cat("Test RMSE:", rmse(y_test, test_preds), "\n")
+cat("Test MAE :", mae(y_test, test_preds), "\n")
+cat("Test ME  :", me(y_test, test_preds), "\n")
