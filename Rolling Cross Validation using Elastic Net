@@ -1,0 +1,143 @@
+## Rolling CV using Elastic Net
+# Remove rows with NA values
+data <- na.omit(data)
+colnames(data) <- gsub("&", "_", trimws(colnames(data)))
+
+library(caret)
+library(glmnet)
+install.packages("tidyverse")
+library(tidyverse)
+
+
+
+#create data.frames where results will be stored
+results_df <- data.frame(Window_Size = integer(),
+                         Horizon = integer(),
+                         Mean_RMSE = numeric(),
+                         Mean_MAE = numeric(),
+                         Num_Selected_Features = integer())
+
+results_error <- data.frame(Window_Size = integer(),
+                            Horizon = integer(),
+                            Set = character(),
+                            RMSE = numeric(),
+                            MAE = numeric())
+
+rolling_cv_elastic_net <- function(data, window_size, horizon, alpha_value = 0.5) {
+  n <- nrow(data)
+  results <- data.frame(MAE = numeric(), RMSE = numeric())
+  
+  
+  x <- as.matrix(data[, !names(data) %in% c("GOLD_SPOT_PRICE", "Date")])
+  y <- data$GOLD_SPOT_PRICE
+  
+  for (start in 1:(n - window_size - horizon + 1)) {
+    train_end <- start + window_size - 1
+    test_end <- train_end + horizon
+    
+    if (test_end > n) next
+    
+    train_idx <- start:train_end
+    test_idx <- (train_end + 1):test_end
+    
+    x_train <- x[train_idx, , drop = FALSE]
+    y_train <- y[train_idx]
+    x_test <- x[test_idx, , drop = FALSE]
+    y_test <- y[test_idx]
+    
+    cv_model <- cv.glmnet(x_train, y_train, 
+                          alpha = alpha_value, 
+                          nfolds = 5,
+                          standardize = TRUE)
+    
+    best_lambda <- cv_model$lambda.min
+    model <- glmnet(x_train, y_train, 
+                    alpha = alpha_value, 
+                    lambda = best_lambda)
+    
+    # Training predictions and errors
+    train_pred <- predict(model, newx = x_train)
+    train_rmse <- sqrt(mean((train_pred - y_train)^2))
+    train_mae <- mean(abs(train_pred - y_train))
+    
+    # Testing predictions and errors
+    test_pred <- predict(model, newx = x_test)
+    test_rmse <- sqrt(mean((test_pred - y_test)^2))
+    test_mae <- mean(abs(test_pred - y_test))
+    
+    #selected features
+    coefs <- coef(model)
+    selected_features <- rownames(coefs)[coefs[,1] != 0]
+    selected_features <- setdiff(selected_features, "(Intercept)")
+    
+    # Store results
+    results <- rbind(results, data.frame(MAE = test_mae, RMSE = test_rmse))
+    
+    #overall results_error with both train and test
+    results_error <<- rbind(results_error, 
+                            data.frame(Window_Size = window_size,
+                                       Horizon = horizon,
+                                       Set = "Train",
+                                       RMSE = train_rmse,
+                                       MAE = train_mae),
+                            data.frame(Window_Size = window_size,
+                                       Horizon = horizon,
+                                       Set = "Test",
+                                       RMSE = test_rmse,
+                                       MAE = test_mae))
+  }
+  
+  
+  mean_rmse <- mean(results$RMSE)
+  mean_mae <- mean(results$MAE)
+  
+  results_df <<- rbind(results_df,
+                       data.frame(Window_Size = window_size,
+                                  Horizon = horizon,
+                                  Mean_RMSE = mean_rmse,
+                                  Mean_MAE = mean_mae,
+                                  Num_Selected_Features = length(selected_features)))
+  
+  return(list(
+    model = model,
+    selected_features = selected_features,
+    mean_rmse = mean_rmse,
+    mean_mae = mean_mae
+  ))
+}
+
+
+
+
+
+rolling_cv_elastic_net(data, window_size = 100, horizon = 1,)
+rolling_cv_elastic_net(data, window_size = 100, horizon = 3)
+rolling_cv_elastic_net(data, window_size = 100, horizon = 5)
+rolling_cv_elastic_net(data, window_size = 100, horizon = 10)
+rolling_cv_elastic_net(data, window_size = 100, horizon = 20)
+rolling_cv_elastic_net(data, window_size = 200, horizon = 1)
+rolling_cv_elastic_net(data, window_size = 200, horizon = 3)
+rolling_cv_elastic_net(data, window_size = 200, horizon = 5)
+rolling_cv_elastic_net(data, window_size = 200, horizon = 10)
+rolling_cv_elastic_net(data, window_size = 200, horizon = 20)
+rolling_cv_elastic_net(data, window_size = 300, horizon = 1)
+rolling_cv_elastic_net(data, window_size = 300, horizon = 3)
+rolling_cv_elastic_net(data, window_size = 300, horizon = 5)
+rolling_cv_elastic_net(data, window_size = 300, horizon = 10)
+rolling_cv_elastic_net(data, window_size = 300, horizon = 20)
+rolling_cv_elastic_net(data, window_size = 400, horizon = 1)
+rolling_cv_elastic_net(data, window_size = 400, horizon = 3)
+rolling_cv_elastic_net(data, window_size = 400, horizon = 5)
+rolling_cv_elastic_net(data, window_size = 400, horizon = 10)
+rolling_cv_elastic_net(data, window_size = 400, horizon = 20)
+rolling_cv_elastic_net(data, window_size = 500, horizon = 1)
+rolling_cv_elastic_net(data, window_size = 500, horizon = 3)
+rolling_cv_elastic_net(data, window_size = 500, horizon = 5)
+rolling_cv_elastic_net(data, window_size = 500, horizon = 10)
+rolling_cv_elastic_net(data, window_size = 500, horizon = 20)
+
+
+summary(model)
+
+#results provided overview of statistical importance of variables,
+#variables with low statistical importance were removed from the dataset
