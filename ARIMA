@@ -1,0 +1,157 @@
+###################################################################################################
+################################# ARIMA Cross Validation for Parameters ###########################
+###################################################################################################
+
+library(forecast)
+library(tseries)
+
+
+# Make sure time series is numeric and has no NAs
+gold_ts <- ts(na.omit(filtered_data[[2]]), frequency = 365)
+
+
+
+#RMSE function for evaluation 
+evaluate_arima_rmse <- function(p, d, q, series, h = 1) {
+  errors <- tryCatch({
+    tsCV(series,
+         forecastfunction = function(y, h) {
+           fit <- Arima(y, order = c(p, d, q), method = "ML")
+           forecast(fit, h = h)
+         },
+         h = h)
+  }, error = function(e) {
+    cat(" Error in tsCV for ARIMA(", p, ",", d, ",", q, "):", e$message, "\n")
+    return(NA)
+  })
+  
+  # Compute RMSE only if valid
+  if (!is.null(errors) && any(!is.na(errors))) {
+    rmse <- sqrt(mean(errors^2, na.rm = TRUE))
+    if (is.finite(rmse)) return(rmse)
+  }
+  
+  return(NA)
+}
+
+#parameter range
+p_range <- 1:3
+d_range <- 1     
+q_range <- 0:3
+
+#grid search
+results <- data.frame(p = integer(), d = integer(), q = integer(), RMSE = numeric())
+counter <- 1
+
+for (p in p_range) {
+  for (d in d_range) {
+    for (q in q_range) {
+      
+      cat("Testing ARIMA(", p, ",", d, ",", q, ")...\n")
+      
+      score <- evaluate_arima_rmse(p, d, q, gold_ts, h = 1)
+      
+      if (!is.na(score) && is.finite(score)) {
+        results[counter, ] <- data.frame(p = p, d = d, q = q, RMSE = round(score, 4))
+        cat("RMSE:", round(score, 4), "\n")
+        counter <- counter + 1
+      } else {
+        cat("Skipped ARIMA(", p, ",", d, ",", q, ") due to invalid RMSE\n")
+      }
+    }
+  }
+}
+
+#display and save results
+if (nrow(results) > 0 && "RMSE" %in% names(results)) {
+  results <- results[order(results$RMSE), ]
+  
+  cat("Best ARIMA models by RMSE:\n")
+  print(head(results, 10))
+  
+  write.csv(results, "arima_cv_results.csv", row.names = FALSE)
+  
+  #fitting the model
+  best_model <- results[1, ]
+  cat("\n best ARIMA Model Selected:\n")
+  print(best_model)
+  
+  final_model <- Arima(gold_ts,
+                       order = c(best_model$p, best_model$d, best_model$q),
+                       method = "ML")
+  cat("\n Final Model Summary:\n")
+  print(summary(final_model))
+  
+} else {
+  cat("\n No valid ARIMA models produced a valid RMSE. Please check your series or try different parameter ranges.\n")
+}
+
+
+
+###################################################################################################
+###################################################################################################
+################################# ARIMA Final Model ###############################################
+###################################################################################################
+
+
+
+
+
+#I ran the final model using optimal configuraton
+gold_ts <- ts(na.omit(filtered_data[[2]]), frequency = 365)
+n <- length(gold_ts)
+
+#rolling window size
+window_size <- 200  
+n_forecasts <- n - window_size
+
+#create object for values to be stored
+rolling_forecasts <- numeric(n_forecasts)   
+actuals           <- numeric(n_forecasts)  
+training_rmse_list <- numeric(n_forecasts) 
+training_mae_list  <- numeric(n_forecasts) 
+
+#loop for rolling window prediction
+for (i in 1:n_forecasts) {
+  train_window <- gold_ts[i:(i + window_size - 1)]
+  test_point   <- gold_ts[i + window_size]
+  
+  fit <- tryCatch({
+    Arima(train_window, order = c(1, 1, 0), method = "ML")
+  }, error = function(e) return(NULL))
+  
+  if (!is.null(fit)) {
+    fc <- forecast(fit, h = 1)
+    rolling_forecasts[i] <- fc$mean[1]
+    actuals[i] <- test_point
+    
+    fit_values <- fitted(fit)
+    training_actuals <- train_window
+    
+    training_rmse_i <- sqrt(mean((fit_values - training_actuals)^2, na.rm = TRUE))
+    training_mae_i  <- mean(abs(fit_values - training_actuals), na.rm = TRUE)
+    
+    training_rmse_list[i] <- training_rmse_i
+    training_mae_list[i]  <- training_mae_i
+  } else {
+    rolling_forecasts[i] <- NA
+    actuals[i] <- NA
+    training_rmse_list[i] <- NA
+    training_mae_list[i]  <- NA
+  }
+}
+
+
+# Training error 
+training_rmse <- mean(training_rmse_list, na.rm = TRUE)
+training_mae  <- mean(training_mae_list, na.rm = TRUE)
+
+# Testing error 
+testing_rmse <- sqrt(mean((rolling_forecasts - actuals)^2, na.rm = TRUE))
+testing_mae  <- mean(abs(rolling_forecasts - actuals), na.rm = TRUE)
+
+#results
+cat("   Training RMSE:", round(training_rmse, 4), "\n")
+cat("   Training MAE :", round(training_mae, 4), "\n")
+cat("   Testing RMSE :", round(testing_rmse, 4), "\n")
+cat("   Testing MAE  :", round(testing_mae, 4), "\n")
